@@ -1,0 +1,426 @@
+library(ape)#
+library(ade4)#
+library(coda)#
+library(doMC)#
+library(gplots)#
+library(raster)#
+library(vioplot)#
+library(adephylo)#
+library(phytools)#
+library(RColorBrewer)#
+#
+source("readNexus.r")#
+#
+logit = function(v)#
+	{#
+		for (i in 1:length(v)) v[i] = log10(v[i]/(1-v[i]))#
+		return(v)#
+	}#
+delogit = function(v)#
+	{#
+		for (i in 1:length(v)) v[i] = (10^v[i])/(1+(10^v[i]))#
+		return(v)#
+	}#
+#
+wd1 = getwd(); wd2 = paste0(wd1,"/BEAST runs")
+install.packages("gplots")
+install.packages("adephylo")
+library(ape)#
+library(ade4)#
+library(coda)#
+library(doMC)#
+library(gplots)#
+library(raster)#
+library(vioplot)#
+library(adephylo)#
+library(phytools)#
+library(RColorBrewer)#
+#
+source("readNexus.r")#
+#
+logit = function(v)#
+	{#
+		for (i in 1:length(v)) v[i] = log10(v[i]/(1-v[i]))#
+		return(v)#
+	}#
+delogit = function(v)#
+	{#
+		for (i in 1:length(v)) v[i] = (10^v[i])/(1+(10^v[i]))#
+		return(v)#
+	}#
+#
+wd1 = getwd(); wd2 = paste0(wd1,"/BEAST runs")#
+#
+# 1. Preparation of the different input files
+setwd(wd2)#
+fasta = read.dna("Minus_recombinant_regions_sequences.fasta", format="fasta")#
+row.names(fasta) = gsub("_","-",row.names(fasta))#
+row.names(fasta) = gsub("-19","_19",row.names(fasta))#
+row.names(fasta) = gsub("-20","_20",row.names(fasta))#
+row.names(fasta) = gsub("-MRCA","_MRCA",row.names(fasta))#
+for (i in 1:length(row.names(fasta)))#
+	{#
+		suffix = unlist(strsplit(row.names(fasta)[i],"_"))[length(unlist(strsplit(row.names(fasta)[i],"_")))]#
+		if ((suffix == "MRCA")|(suffix == "MRCA-1822-2697"))#
+			{#
+				row.names(fasta)[i] = paste("zzzz",row.names(fasta)[i],sep="-")#
+			}#
+	}#
+fasta = fasta[order(row.names(fasta)),]#
+sequence_names = row.names(fasta)
+sequence_names
+fasta
+setwd(wd1)#
+tab = read.table("MSV_traits_1.txt", header=T)#
+for (j in 3:dim(tab)[2])#
+	{#
+		t = as.character(tab[1,j])#
+		t = gsub("c\\(","",t)#
+		t = gsub("\\)","",t)#
+		t = unlist(strsplit(t,","))#
+		t = as.numeric(t)#
+		minV = min(t); maxV = max(t)#
+		for (i in 2:dim(tab)[1])#
+			{#
+				t = as.character(tab[i,j])#
+				t = gsub("c\\(","",t)#
+				t = gsub("\\)","",t)#
+				t = unlist(strsplit(t,","))#
+				t = as.numeric(t)#
+				if (length(t) > 0)#
+					{#
+						if (min(t, na.rm=T) < minV)#
+							{#
+								minV = min(t, na.rm=T)#
+							}	#
+						if (max(t, na.rm=T) > maxV)#
+							{#
+								maxV = max(t, na.rm=T)#
+							}#
+					}#
+			}#
+		cat(paste0("[",round(minV,3),",",round(maxV,3),"]\t\t",colnames(tab)[j]))#
+		cat("\n")#
+	}
+logitTransformations = c(F,T,F,T,T,T)#
+       rescalingStep = c(F,T,F,T,F,F)#
+minMaxValues = list()#
+minMaxValues[[2]] = c(0,100)#
+minMaxValues[[4]] = c(0,50)#
+traits = list()#
+averages = list()#
+logitAverages = list()#
+CVs = list()#
+logitCVs = list()#
+nberOfMeasures = list()#
+new_ts = tab#
+new_ts[,3:dim(new_ts)[2]] = -9999#
+logits = tab#
+logits[,3:dim(logits)[2]] = -9999#
+for (i in 3:dim(tab)[2])#
+	{#
+		trait = list()#
+		average = list()#
+		logitAverage = list()#
+		CV = list()#
+		logitCV = list()#
+		nberOfMeasure = list()#
+		vS = c()#
+		for (j in 1:dim(tab)[1])#
+			{#
+				t = as.character(tab[j,i])#
+				t = gsub("c\\(","",t)#
+				t = gsub("\\)","",t)#
+				t = unlist(strsplit(t,","))#
+				t = as.numeric(t)#
+				vS = c(vS, t)#
+				outs = boxplot.stats(t)$out#
+				if (length(outs) > 0)#
+					{#
+						t = t[!t[]%in%outs]#
+					}#
+				nberOfMeasure[[j]] = length(t)#
+				trait[[j]] = t#
+				m = mean(t[!is.na(t[])])#
+				average[[j]] = m#
+				CV[[j]] = sd(t[!is.na(t[])])/m#
+				if (length(t[!is.na(t[])]) == 0)#
+					{#
+						text = "c\\(\\)"#
+					}	else		{#
+						text = paste("c\\(",t[1],sep="")#
+						for (k in 2:length(t))#
+							{#
+								text = paste(text,t[k],sep=",")#
+							}#
+						text = paste(text,"\\)",sep="")#
+					}#
+				new_ts[j,i] = text#
+				if (logitTransformations[i-2] == TRUE)#
+					{#
+						if (rescalingStep[i-2] == TRUE)#
+							{#
+								minV = minMaxValues[[i-2]][1]#
+								maxV = minMaxValues[[i-2]][2]#
+								t = (t-minV)/(maxV-minV) #
+							}#
+						t = logit(t)#
+					}	else		{#
+						t = log(t)#
+					}#
+				m = mean(t[!is.na(t[])])#
+				logitAverage[[j]] = m#
+				logitCV[[j]] = sd(t[!is.na(t[])])/m#
+				if (length(t[!is.na(t[])]) == 0)#
+					{#
+						text = "c\\(\\)"#
+					}	else		{#
+						text = paste("c\\(",t[1],sep="")#
+						for (k in 2:length(t))#
+							{#
+								text = paste(text,t[k],sep=",")#
+							}#
+						text = paste(text,"\\)",sep="")#
+					}#
+				logits[j,i] = text#
+			}#
+		# hist(vS)#
+		traits[[i-2]] = trait#
+		averages[[i-2]] = average#
+		logitAverages[[i-2]] = logitAverage#
+		CVs[[i-2]] = CV#
+		logitCVs[[i-2]] = logitCV#
+		nberOfMeasures[[i-2]] = nberOfMeasure#
+	}
+new_ts
+logits
+setwd(wd1)#
+# First: removing all the "\" in a text editor#
+tab = read.table("MSV_logits_2.txt", header=T)#
+traitMeans = matrix(nrow=6, ncol=1); traitSDs = matrix(nrow=6, ncol=1)
+for (j in 3:dim(tab)[2])#
+	{#
+		t = as.character(tab[1,j])#
+		t = gsub("c\\(","",t)#
+		t = gsub("\\)","",t)#
+		t = unlist(strsplit(t,","))#
+		t = as.numeric(t)#
+		minV = min(t); maxV = max(t)#
+		tS = t#
+		for (i in 2:dim(tab)[1])#
+			{#
+				t = as.character(tab[i,j])#
+				t = gsub("c\\(","",t)#
+				t = gsub("\\)","",t)#
+				t = unlist(strsplit(t,","))#
+				t = as.numeric(t)#
+				if (length(t) > 0)#
+					{#
+						if (min(t, na.rm=T) < minV)#
+							{#
+								minV = min(t, na.rm=T)#
+							}	#
+						if (max(t, na.rm=T) > maxV)#
+							{#
+								maxV = max(t, na.rm=T)#
+							}#
+					}#
+				tS = c(tS, t)#
+			}#
+		traitMeans[j-2,1] = mean(tS, na.rm=T); traitSDs[j-2,1] = sd(tS, na.rm=T)#
+		print(paste(colnames(tab)[j],round(minV,3),round(maxV,3),round(traitMeans[j-2,1],3),round(traitSDs[j-2,1],3),sep=" "))#
+	}
+standAverages = list()#
+stands = tab#
+stands[,3:dim(stands)[2]] = -9999#
+for (i in 3:dim(tab)[2])#
+	{#
+		standAverage = list()#
+		vS = c()#
+		for (j in 1:dim(tab)[1])#
+			{#
+				t = as.character(tab[j,i])#
+				t = gsub("c\\(","",t)#
+				t = gsub("\\)","",t)#
+				t = unlist(strsplit(t,","))#
+				t = as.numeric(t) # standardisation:#
+				t = (t-traitMeans[i-2,1])/traitSDs[i-2,1]#
+				m = mean(t[!is.na(t[])])#
+				standAverage[[j]] = m#
+				if (length(t[!is.na(t[])]) == 0)#
+					{#
+						text = "c\\(\\)"#
+					}	else		{#
+						text = paste("c\\(",t[1],sep="")#
+						for (k in 2:length(t))#
+							{#
+								text = paste(text,t[k],sep=",")#
+							}#
+						text = paste(text,"\\)",sep="")#
+					}#
+				stands[j,i] = text#
+			}#
+		standAverages[[i-2]] = standAverage#
+	}
+standAverages
+individuals = unique(tab[,1])#
+averaged_values_1 = matrix(nrow=length(individuals), ncol=(6*3*3))#
+averaged_values_2 = matrix(nrow=length(individuals), ncol=(6*3))#
+logitAveraged_values_1 = matrix(nrow=length(individuals), ncol=(6*3*3))#
+logitAveraged_values_2 = matrix(nrow=length(individuals), ncol=(6*3))#
+standAveraged_values_1 = matrix(nrow=length(individuals), ncol=(6*3*3))#
+standAveraged_values_2 = matrix(nrow=length(individuals), ncol=(6*3))#
+CV_values_1 = matrix(nrow=length(individuals), ncol=(6*3*3))#
+CV_values_2 = matrix(nrow=length(individuals), ncol=(6*3))#
+logitCV_values_1 = matrix(nrow=length(individuals), ncol=(6*3*3))#
+nberOfMeasures_1 = matrix(nrow=length(individuals), ncol=(6*3*3))#
+nberOfMeasures_2 = matrix(nrow=length(individuals), ncol=(6*3))#
+measures = colnames(tab)[3:length(tab)]#
+host_leafs = as.character(unique(tab[,2]))#
+hosts = c("SC","GB","Pan77")#
+colNames_1 = c()#
+colNames_2 = c()#
+for (i in 1:length(measures))#
+	{#
+		for (j in 1:length(host_leafs))#
+			{#
+				colNames_1 = c(colNames_1, paste(measures[i],host_leafs[j],sep="_"))#
+			}#
+		for (j in 1:length(hosts))#
+			{#
+				colNames_2 = c(colNames_2, paste(measures[i],hosts[j],sep="_"))#
+			}#
+	}#
+colnames(averaged_values_1) = colNames_1#
+colnames(averaged_values_2) = colNames_2#
+colnames(logitAveraged_values_1) = colNames_1#
+colnames(logitAveraged_values_2) = colNames_2#
+colnames(standAveraged_values_1) = colNames_1#
+colnames(standAveraged_values_2) = colNames_2#
+colnames(CV_values_1) = colNames_1#
+colnames(logitCV_values_1) = colNames_1#
+colnames(nberOfMeasures_1) = colNames_1#
+colnames(nberOfMeasures_2) = colNames_2#
+for (i in 1:length(individuals))#
+	{#
+		for (j in 1:length(averages))#
+			{#
+				for (k in 1:length(host_leafs))#
+					{#
+						index = which((tab[,1]==individuals[i])&(tab[,2]==host_leafs[k]))#
+						col = ((j-1)*9)+k#
+						averaged_values_1[i,col] = averages[[j]][[index]]#
+						logitAveraged_values_1[i,col] = logitAverages[[j]][[index]]#
+						standAveraged_values_1[i,col] = standAverages[[j]][[index]]#
+						CV_values_1[i,col] = CVs[[j]][[index]]#
+						logitCV_values_1[i,col] = logitCVs[[j]][[index]]#
+						nberOfMeasures_1[i,col] = nberOfMeasures[[j]][[index]]#
+					}#
+			}#
+	}#
+species_names = c()#
+for (i in 1:length(tab[,2]))#
+	{#
+		species_names = c(species_names, unlist(strsplit(as.character(tab[i,2]),"_"))[1])#
+	}#
+for (i in 1:length(individuals))#
+	{#
+		for (j in 1:length(traits))#
+			{#
+				for (k in 1:length(hosts))#
+					{#
+						index = which((tab[,1]==individuals[i])&(species_names==hosts[k]))#
+						values = c(traits[[j]][[index[1]]], traits[[j]][[index[2]]], traits[[j]][[index[3]]])#
+						means = c(mean(traits[[j]][[index[1]]]), mean(traits[[j]][[index[2]]]), mean(traits[[j]][[index[3]]]))#
+						sumOfMeasures = nberOfMeasures[[j]][[index[1]]]+nberOfMeasures[[j]][[index[2]]]+nberOfMeasures[[j]][[index[3]]]#
+						col = ((j-1)*3)+k#
+						if (logitTransformations[j] == TRUE)#
+							{#
+								if (rescalingStep[j] == TRUE)#
+									{#
+										minV = minMaxValues[[j]][1]#
+										maxV = minMaxValues[[j]][2]#
+										rescaledValues = (values-minV)/(maxV-minV) #
+									}	else	{#
+										rescaledValues = values#
+									}#
+								logitValues = logit(rescaledValues)#
+							}	else	{#
+								logitValues = log(values)#
+							}#
+						standValues = (logitValues-traitMeans[j,1])/traitSDs[j,1]#
+						averaged_values_2[i,col] = mean(values[!is.na(values)])#
+						logitAveraged_values_2[i,col] = mean(logitValues[!is.na(logitValues)])#
+						standAveraged_values_2[i,col] = mean(standValues[!is.na(standValues)])#
+						nberOfMeasures_2[i,col] = sumOfMeasures#
+						# boxplot(cbind(traits[[j]][[index[1]]], traits[[j]][[index[2]]], traits[[j]][[index[3]]]))#
+					}			#
+			}#
+	}	#
+individuals = as.character(individuals)#
+individuals = gsub("_","-",individuals)#
+individuals = gsub("-19","_19",individuals)#
+individuals = gsub("-20","_20",individuals)#
+individuals = gsub("-MRCA","_MRCA",individuals)#
+for (i in 1:length(individuals))#
+	{#
+		suffix = unlist(strsplit(individuals[i],"_"))[length(unlist(strsplit(individuals[i],"_")))]#
+		if (suffix == "MRCA")#
+			{#
+				individuals[i] = paste("zzzz",individuals[i],sep="-")#
+			}#
+	}#
+row.names(averaged_values_1) = individuals#
+row.names(averaged_values_2) = individuals#
+averaged_values_1 = averaged_values_1[order(row.names(averaged_values_1)),]#
+averaged_values_2 = averaged_values_2[order(row.names(averaged_values_2)),]#
+row.names(logitAveraged_values_1) = individuals#
+row.names(logitAveraged_values_2) = individuals#
+logitAveraged_values_1 = logitAveraged_values_1[order(row.names(logitAveraged_values_1)),]#
+logitAveraged_values_2 = logitAveraged_values_2[order(row.names(logitAveraged_values_2)),]#
+row.names(standAveraged_values_1) = individuals#
+row.names(standAveraged_values_2) = individuals#
+standAveraged_values_1 = standAveraged_values_1[order(row.names(standAveraged_values_1)),]#
+standAveraged_values_2 = standAveraged_values_2[order(row.names(standAveraged_values_2)),]#
+row.names(CV_values_1) = individuals#
+CV_values_1 = CV_values_1[order(row.names(CV_values_1)),]#
+row.names(logitCV_values_1) = individuals#
+logitCV_values_1 = logitCV_values_1[order(row.names(logitCV_values_1)),]#
+row.names(nberOfMeasures_1) = individuals#
+row.names(nberOfMeasures_2) = individuals#
+nberOfMeasures_1 = nberOfMeasures_1[order(row.names(nberOfMeasures_1)),]#
+nberOfMeasures_2 = nberOfMeasures_2[order(row.names(nberOfMeasures_2)),]
+for (i in 1:length(sequence_names))#
+	{#
+		for (j in 1:length(sequence_names[[i]]))#
+			{#
+				sequence_names[[i]][j] = unlist(strsplit(sequence_names[[i]][j],"_"))[1]#
+			}#
+	}#
+measure_names = c()#
+for (i in 1:length(row.names(averaged_values_1)))#
+	{#
+		measure_names = c(measure_names, unlist(strsplit(row.names(averaged_values_1)[i],"_"))[1])#
+	}
+file_names
+trait_indices = c()#
+nber_of_MRCA = 0#
+if (length(row.names(fasta)) > 0)#
+	{#
+		for (j in 1:length(row.names(fasta)))#
+			{#
+				fasta_name = unlist(strsplit(row.names(fasta)[j],"_"))[1]#
+				trait_indices = c(trait_indices, which(measure_names==fasta_name))#
+				if (length(grep("zzzz",row.names(fasta)[j])) == 1) nber_of_MRCA = nber_of_MRCA + 1#
+			}#
+	}#
+if (length(names(fasta)) > 0)#
+	{#
+		for (j in 1:length(names(fasta)))#
+			{#
+				fasta_name = unlist(strsplit(names(fasta)[j],"_"))[1]#
+				trait_indices = c(trait_indices, which(measure_names==fasta_name))#
+				if (length(grep("zzzz",names(fasta)[j])) == 1) nber_of_MRCA = nber_of_MRCA + 1#
+			}#
+	}#
+temp = averaged_values_1[trait_indices,]

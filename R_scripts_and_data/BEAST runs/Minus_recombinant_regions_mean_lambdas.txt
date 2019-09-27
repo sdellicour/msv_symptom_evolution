@@ -1,0 +1,7 @@
+Pan77	SC	GB
+av_streak_width	0.486	0.538	0.753
+chlorotic_area	0.665	0.677	0.7
+deviation_from_rectangle	0.347	0.251	0.481
+stunting	0.544	0.608	0.659
+yellowness	0.476	0.779	0.437
+whitness	0.509	0.706	0.367
