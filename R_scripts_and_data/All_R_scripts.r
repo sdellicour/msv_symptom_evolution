@@ -482,10 +482,10 @@ for (i in 1:length(hosts))
 	}
 row.names(mat2a) = rowNames; row.names(mat2b) = rowNames; mat2a[1:3,] = -mat2a[1:3,]
 dev.new(width=5, height=3.5)
-heatmap.2(mat2a, main="", density.info="none", dendrogram="none", srtCol=45, key=T,
-labRow=row.names(mat2a), labCol=labCols, cexRow=0.8, cexCol=0.9, cex=1, sepcolor="black", colsep=c(0:10), rowsep=c(0:15),
+heatmap.2(mat2a, main="", density.info="none", dendrogram="none", srtCol=45, key=T, cellnote=mat2c, notecex=0.6, notecol="black",
+labRow=row.names(mat2a), labCol=host_names, cexRow=0.8, cexCol=0.9, cex=1, sepcolor="black", colsep=c(0:10), rowsep=c(0:15),
 sepwidth=c(0.001, 0.001), margin=c(8,15), trace="none", col=colorRampPalette(brewer.pal(11,"RdYlGn"))(101), Rowv=NULL, Colv="NA")
-print(mat2a); print(mat2b)
+print(mat2a); print(mat2b); # dev.off()
 
 
 # 3. Analysing and comparing phylogenetic signals
@@ -817,12 +817,12 @@ for (i in 1:dim(minMaxValues)[2])
 		labelsValues[5,i] = round(max(means[,columns]), nberOfDecimals[i])
 	}
 colorBrewers = list()
-colour1 = "darkolivegreen2"; colour2 = "red"; colorBrewers[[1]] = rev(colorRampPalette(c(colour1,colour2),bias=1)(171)[1:101])
-colour1 = "darkolivegreen2"; colour2 = "red"; colorBrewers[[2]] = colorRampPalette(c(colour1,colour2),bias=1)(131)[1:101]
-colour1 = "darkolivegreen2"; colour2 = "red"; colorBrewers[[3]] = rev(colorRampPalette(c(colour1,colour2),bias=1)(131)[1:101])
-colour1 = "darkolivegreen2"; colour2 = "red"; colorBrewers[[4]] = colorRampPalette(c(colour1,colour2),bias=1)(131)[1:101]
-colour1 = "darkolivegreen2"; colour2 = "red"; colorBrewers[[5]] = colorRampPalette(c(colour1,colour2),bias=1)(131)[1:101]
-colour1 = "darkolivegreen2"; colour2 = "red"; colorBrewers[[6]] = colorRampPalette(c(colour1,colour2),bias=1)(131)[1:101]
+colorBrewers[[1]] = rev(colorRampPalette(brewer.pal(9,"Greys"))(141)[21:121])
+colorBrewers[[2]] = colorRampPalette(brewer.pal(9,"Greys"))(141)[21:121]
+colorBrewers[[3]] = colorRampPalette(brewer.pal(9,"Greys"))(141)[21:121]
+colorBrewers[[4]] = colorRampPalette(brewer.pal(9,"Greys"))(141)[21:121]
+colorBrewers[[5]] = colorRampPalette(brewer.pal(9,"Greys"))(141)[21:121]
+colorBrewers[[6]] = colorRampPalette(brewer.pal(9,"Greys"))(141)[21:121]
 indices = c(2,4,3,5)
 for (i in 1:2)
 	{
@@ -861,6 +861,13 @@ for (i in 1:2)
 										smallplot=c(0.73,0.75,0.1,0.42), legend.args=list(text="", cex=0.8, line=0.5, col="gray30"),
 										axis.args=list(cex.axis=0.7, lwd=0, lwd.tick=0.2, tck=-0.5, line=0, mgp=c(0,0.5,0)), alpha=1)
 									}
+							}
+						if (j == 3)
+							{
+								rootTime = 2017-max(node.depth.edgelength(tree))
+								axisPhylo(lwd=0, cex.axis=0.6, mgp=c(0,0.2,-0.2), axis.args=list(at=seq(1800,2000,50)), pos=-2.0,
+										  backward=F, root.time=rootTime, lwd.tick=0.2, tck=-0.012, side=1, col="gray30", col.tck="gray30")
+								axis(lwd=0.2, at=c(rootTime,0), labels=c("",""), tck=0, pos=-2.0, side=1, col="gray30", col.tck="gray30")
 							}
 					}
 			}
