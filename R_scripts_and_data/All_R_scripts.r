@@ -22,7 +22,7 @@ delogit = function(v)
 		return(v)
 	}
 
-wd1 = getwd(); wd2 = paste0(wd1,"/BEAST runs")
+wd1 = getwd(); wd2 = paste0(wd1,"/BEAST_runs")
 
 
 # 1. Preparation of the different input files
