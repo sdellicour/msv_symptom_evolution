@@ -48,7 +48,7 @@ sequence_names = row.names(fasta)
 	
 	# 1.2. Estimation and preparation of average values for each individual, trait, host and leaf
 
-		# 1.2.1. Analysis of the minimum and maximal values for each trait
+		# 1.2.1. Analysis of the minimum and maximum values for each trait
 				
 setwd(wd1)
 tab = read.table("MSV_traits_1.txt", header=T)
